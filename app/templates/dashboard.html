@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>操作台 - Resume Agent</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #f3f4f6;
+            color: #111827;
+            line-height: 1.5;
+        }
+        .header {
+            background: white;
+            border-bottom: 1px solid #e5e7eb;
+            padding: 16px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 { font-size: 20px; font-weight: 600; }
+        .header .user-info { font-size: 14px; color: #6b7280; }
+        .header button {
+            margin-left: 16px;
+            padding: 6px 14px;
+            background: #ef4444;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 32px auto;
+            padding: 0 20px;
+            display: grid;
+            gap: 24px;
+        }
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        .card h2 {
+            font-size: 18px;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 6px;
+            color: #374151;
+        }
+        input[type="text"], input[type="file"], textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-bottom: 16px;
+        }
+        textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+        button.primary {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+        button.primary:hover { background: #1d4ed8; }
+        button.primary:disabled {
+            background: #93c5fd;
+            cursor: not-allowed;
+        }
+        .msg {
+            margin-top: 12px;
+            font-size: 14px;
+            min-height: 20px;
+        }
+        .success { color: #16a34a; }
+        .error { color: #dc2626; }
+        .result-box {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 16px;
+            white-space: pre-wrap;
+            font-size: 13px;
+            max-height: 400px;
+            overflow-y: auto;
+            display: none;
+        }
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+        @media (max-width: 768px) {
+            .grid-2 { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Resume Agent 操作台</h1>
+        <div>
+            <span class="user-info" id="username-display"></span>
+            <button onclick="logout()">退出登录</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- 上传简历 -->
+        <div class="card">
+            <h2>1. 上传简历（PDF）</h2>
+            <form id="upload-form">
+                <label>选择 PDF 文件</label>
+                <input type="file" id="resume-file" accept=".pdf" required>
+                <button type="submit" class="primary" id="upload-btn">上传并解析</button>
+            </form>
+            <div id="upload-msg" class="msg"></div>
+            <div id="upload-result" class="result-box"></div>
+        </div>
+
+        <!-- 生成定制简历 -->
+        <div class="card">
+            <h2>2. 根据职位要求生成定制简历</h2>
+            <form id="generate-form">
+                <label>职位名称</label>
+                <input type="text" id="job-title" placeholder="例如：高级 Python 后端工程师" required>
+
+                <label>公司名称（可选）</label>
+                <input type="text" id="company" placeholder="例如：字节跳动">
+
+                <label>职位要求 / JD</label>
+                <textarea id="job-description" placeholder="请粘贴完整的职位描述..." required></textarea>
+
+                <button type="submit" class="primary" id="generate-btn">生成定制简历</button>
+            </form>
+            <div id="generate-msg" class="msg"></div>
+            <div id="generate-result" class="result-box"></div>
+        </div>
+    </div>
+
+    <script>
+        // ========== 工具函数 ==========
+        function getToken() {
+            return localStorage.getItem("token");
+        }
+
+        function logout() {
+            localStorage.removeItem("token");
+            window.location.href = "/login";
+        }
+
+        // 检查登录状态
+        function checkAuth() {
+            const token = getToken();
+            if (!token) {
+                window.location.href = "/login";
+                return false;
+            }
+            return true;
+        }
+
+        // 带 Token 的请求
+        async function apiFetch(url, options = {}) {
+            const token = getToken();
+            const headers = {
+                ...(options.headers || {}),
+                "Authorization": `Bearer ${token}`
+            };
+            // 如果是 FormData，不要手动设置 Content-Type
+            if (!(options.body instanceof FormData)) {
+                headers["Content-Type"] = headers["Content-Type"] || "application/json";
+            }
+            const res = await fetch(url, { ...options, headers });
+            if (res.status === 401) {
+                logout();
+                throw new Error("登录已过期，请重新登录");
+            }
+            return res;
+        }
+
+        // ========== 页面初始化 ==========
+        document.addEventListener("DOMContentLoaded", () => {
+            if (!checkAuth()) return;
+
+            // 简单显示用户（可后续从 /me 接口获取）
+            document.getElementById("username-display").innerText = "已登录";
+        });
+
+        // ========== 上传简历 ==========
+        document.getElementById("upload-form").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const fileInput = document.getElementById("resume-file");
+            const msgEl = document.getElementById("upload-msg");
+            const resultEl = document.getElementById("upload-result");
+            const btn = document.getElementById("upload-btn");
+
+            if (!fileInput.files.length) {
+                msgEl.className = "msg error";
+                msgEl.innerText = "请选择文件";
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append("file", fileInput.files[0]);
+
+            btn.disabled = true;
+            msgEl.className = "msg";
+            msgEl.innerText = "上传并解析中，请稍候（大模型处理需要一点时间）...";
+            resultEl.style.display = "none";
+
+            try {
+                const res = await apiFetch("/api/v1/resumes/upload", {
+                    method: "POST",
+                    body: formData
+                });
+                const data = await res.json();
+
+                if (res.ok) {
+                    msgEl.className = "msg success";
+                    msgEl.innerText = "上传并解析成功！";
+                    resultEl.style.display = "block";
+                    resultEl.innerText = JSON.stringify(data.structured_data || data, null, 2);
+                } else {
+                    msgEl.className = "msg error";
+                    msgEl.innerText = data.detail || "上传失败";
+                }
+            } catch (err) {
+                msgEl.className = "msg error";
+                msgEl.innerText = err.message || "网络错误";
+            } finally {
+                btn.disabled = false;
+            }
+        });
+
+        // ========== 生成定制简历 ==========
+        document.getElementById("generate-form").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const jobTitle = document.getElementById("job-title").value.trim();
+            const company = document.getElementById("company").value.trim();
+            const jobDescription = document.getElementById("job-description").value.trim();
+            const msgEl = document.getElementById("generate-msg");
+            const resultEl = document.getElementById("generate-result");
+            const btn = document.getElementById("generate-btn");
+
+            btn.disabled = true;
+            msgEl.className = "msg";
+            msgEl.innerText = "正在调用大模型生成简历，请稍候...";
+            resultEl.style.display = "none";
+
+            try {
+                const res = await apiFetch("/api/v1/generate/", {
+                    method: "POST",
+                    body: JSON.stringify({
+                        job_title: jobTitle,
+                        company: company || null,
+                        job_description: jobDescription
+                    })
+                });
+                const data = await res.json();
+
+                if (res.ok) {
+                    msgEl.className = "msg success";
+                    msgEl.innerText = "生成成功！";
+                    resultEl.style.display = "block";
+                    // 后端返回的 generated_resume 可能是字符串或对象
+                    const content = typeof data.generated_resume === "string"
+                        ? data.generated_resume
+                        : JSON.stringify(data.generated_resume, null, 2);
+                    resultEl.innerText = content;
+                } else {
+                    msgEl.className = "msg error";
+                    msgEl.innerText = data.detail || "生成失败";
+                }
+            } catch (err) {
+                msgEl.className = "msg error";
+                msgEl.innerText = err.message || "网络错误";
+            } finally {
+                btn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
