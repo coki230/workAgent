@@ -208,6 +208,10 @@
         <div class="generate-panel">
             <h2>生成定制简历</h2>
 
+            <button class="btn btn-secondary" style="width:100%; margin-bottom:18px;" onclick="runResumeCheck()">
+                简历体检（检查冲突与优化点）
+            </button>
+
             <div class="form-group">
                 <label>职位名称</label>
                 <input type="text" id="job-title" placeholder="例如：高级 Python 工程师">
@@ -430,6 +434,151 @@
             if (!checkAuth()) return;
             addMessage("你好，我是你的简历管家。\n\n左侧可以随时上传简历或补充任何信息（都会自动保存）。\n右侧填写岗位要求后，点击「生成 PDF 简历」即可。", "bot");
         });
+
+        // 简历体检
+        async function runResumeCheck() {
+            if (!checkAuth()) return;
+
+            addMessage("正在对你已保存的所有内容进行体检，请稍候...", "bot");
+
+            try {
+                const res = await apiFetch("/api/v1/resumes/analyze", {
+                    method: "POST"
+                });
+                const data = await res.json();
+
+                if (!res.ok) {
+                    addMessage("体检失败：" + (data.detail || "未知错误"), "bot");
+                    return;
+                }
+
+                // 保存结果，供后续按钮使用
+                lastAnalysisResult = {
+                    summary: data.summary,
+                    conflicts: data.conflicts || [],
+                    optimizations: data.optimizations || [],
+                    suggestions: data.suggestions || []
+                };
+
+                // 构建报告文本
+                let msg = `【简历体检报告】\n\n${data.summary}\n\n`;
+
+                if (data.conflicts && data.conflicts.length > 0) {
+                    msg += "【发现的逻辑冲突】\n";
+                    data.conflicts.forEach((item, i) => {
+                        msg += `${i + 1}. ${item}\n`;
+                    });
+                    msg += "\n";
+                } else {
+                    msg += "【逻辑冲突】未发现明显冲突。\n\n";
+                }
+
+                if (data.optimizations && data.optimizations.length > 0) {
+                    msg += "【可优化的地方】\n";
+                    data.optimizations.forEach((item, i) => {
+                        msg += `${i + 1}. ${item}\n`;
+                    });
+                    msg += "\n";
+                }
+
+                if (data.suggestions && data.suggestions.length > 0) {
+                    msg += "【优化建议】\n";
+                    data.suggestions.forEach((item, i) => {
+                        msg += `${i + 1}. ${item}\n`;
+                    });
+                }
+
+                // 渲染带按钮的消息
+                addMessageWithButtons(msg, [
+                    {
+                        label: "按建议全部修改",
+                        onClick: () => applyOptimization("按建议全部修改")
+                    },
+                    {
+                        label: "只修复逻辑冲突",
+                        onClick: () => applyOptimization("只修复逻辑冲突部分")
+                    },
+                    {
+                        label: "只做表达优化",
+                        onClick: () => applyOptimization("只做表达和量化优化，不改结构")
+                    },
+                    {
+                        label: "暂不修改",
+                        onClick: () => addMessage("好的，已取消修改。你仍可继续补充信息或生成简历。", "bot")
+                    }
+                ]);
+
+            } catch (err) {
+                addMessage("体检出错：" + err.message, "bot");
+            }
+        }
+
+        // 添加带按钮的机器人消息
+        function addMessageWithButtons(content, buttons = []) {
+            const container = document.getElementById("chat-container");
+
+            const wrapper = document.createElement("div");
+            wrapper.className = "message bot";
+            wrapper.style.maxWidth = "90%";
+
+            // 文本内容
+            const textDiv = document.createElement("div");
+            textDiv.textContent = content;
+            wrapper.appendChild(textDiv);
+
+            // 按钮区域
+            if (buttons.length > 0) {
+                const btnContainer = document.createElement("div");
+                btnContainer.style.marginTop = "12px";
+                btnContainer.style.display = "flex";
+                btnContainer.style.flexWrap = "wrap";
+                btnContainer.style.gap = "8px";
+
+                buttons.forEach(btn => {
+                    const button = document.createElement("button");
+                    button.textContent = btn.label;
+                    button.className = "btn btn-primary";
+                    button.style.fontSize = "13px";
+                    button.style.padding = "7px 12px";
+                    button.onclick = btn.onClick;
+                    btnContainer.appendChild(button);
+                });
+
+                wrapper.appendChild(btnContainer);
+            }
+
+            container.appendChild(wrapper);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        async function applyOptimization(instruction) {
+            if (!checkAuth()) return;
+
+            addMessage(`已选择：${instruction}\n正在优化并写回数据库，请稍候...`, "bot");
+
+            try {
+                const res = await apiFetch("/api/v1/resumes/apply-optimization", {
+                    method: "POST",
+                    body: JSON.stringify({
+                        instruction: instruction,
+                        previous_analysis: lastAnalysisResult
+                    })
+                });
+                const data = await res.json();
+
+                if (res.ok) {
+                    addMessage(data.message, "bot");
+
+                    if (data.optimized_data && data.optimized_data.summary) {
+                        addMessage("优化后的个人总结预览：\n" + data.optimized_data.summary, "bot");
+                    }
+                } else {
+                    addMessage("优化失败：" + (data.detail || data.message || "未知错误"), "bot");
+                }
+            } catch (err) {
+                addMessage("优化过程出错：" + err.message, "bot");
+            }
+        }
     </script>
 </body>
 </html>
