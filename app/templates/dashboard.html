@@ -208,6 +208,16 @@
         <div class="generate-panel">
             <h2>生成定制简历</h2>
 
+            <div style="margin-bottom: 20px; padding: 12px; background: #f8fafc; border-radius: 8px;">
+                <label style="font-size: 13px; font-weight: 500; color: #475569;">从网址添加项目经验</label>
+                <input type="text" id="project-url" placeholder="输入 GitHub 仓库或网页地址"
+                       style="width: 100%; padding: 8px 10px; margin: 8px 0; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px;">
+                <button class="btn btn-secondary" style="width: 100%;" onclick="analyzeUrlProject()">
+                    分析并写入项目经验
+                </button>
+                <div id="url-project-msg" style="font-size: 12px; margin-top: 6px; min-height: 16px;"></div>
+            </div>
+
             <button class="btn btn-secondary" style="width:100%; margin-bottom:18px;" onclick="runResumeCheck()">
                 简历体检（检查冲突与优化点）
             </button>
@@ -577,6 +587,50 @@
                 }
             } catch (err) {
                 addMessage("优化过程出错：" + err.message, "bot");
+            }
+        }
+
+        async function analyzeUrlProject() {
+            if (!checkAuth()) return;
+
+            const urlInput = document.getElementById("project-url");
+            const msgEl = document.getElementById("url-project-msg");
+            const url = urlInput.value.trim();
+
+            if (!url) {
+                msgEl.style.color = "#dc2626";
+                msgEl.innerText = "请输入网址";
+                return;
+            }
+
+            msgEl.style.color = "#64748b";
+            msgEl.innerText = "正在分析网址，请稍候...";
+
+            try {
+                const res = await apiFetch("/api/v1/projects/from-url", {
+                    method: "POST",
+                    body: JSON.stringify({ url })
+                });
+                const data = await res.json();
+
+                if (res.ok) {
+                    msgEl.style.color = "#16a34a";
+                    msgEl.innerText = "添加成功！";
+                    urlInput.value = "";
+
+                    // 在对话框也提示一下
+                    let tip = `已成功添加项目：${data.project.name}\n`;
+                    if (data.project.highlights && data.project.highlights.length) {
+                        tip += "亮点：\n" + data.project.highlights.map(h => "• " + h).join("\n");
+                    }
+                    addMessage(tip, "bot");
+                } else {
+                    msgEl.style.color = "#dc2626";
+                    msgEl.innerText = data.detail || "分析失败";
+                }
+            } catch (err) {
+                msgEl.style.color = "#dc2626";
+                msgEl.innerText = err.message || "网络错误";
             }
         }
     </script>
