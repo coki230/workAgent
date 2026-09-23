@@ -32,16 +32,31 @@
             cursor: pointer;
             font-size: 13px;
         }
+
+        .main {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* 左侧聊天区 */
+        .chat-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #e2e8f0;
+            background: #f8fafc;
+        }
         .chat-container {
             flex: 1;
             overflow-y: auto;
             padding: 20px;
             display: flex;
             flex-direction: column;
-            gap: 16px;
+            gap: 14px;
         }
         .message {
-            max-width: 75%;
+            max-width: 80%;
             padding: 12px 16px;
             border-radius: 12px;
             line-height: 1.5;
@@ -62,19 +77,10 @@
             border: 1px solid #e2e8f0;
             border-bottom-left-radius: 4px;
         }
-        .message.system {
-            align-self: center;
-            background: #f1f5f9;
-            color: #64748b;
-            font-size: 13px;
-            max-width: 90%;
-            text-align: center;
-        }
         .input-area {
             background: white;
             border-top: 1px solid #e2e8f0;
-            padding: 16px 20px;
-            flex-shrink: 0;
+            padding: 14px 16px;
         }
         .input-row {
             display: flex;
@@ -83,23 +89,22 @@
         }
         #message-input {
             flex: 1;
-            min-height: 44px;
-            max-height: 120px;
-            padding: 10px 14px;
+            min-height: 42px;
+            max-height: 100px;
+            padding: 10px 12px;
             border: 1px solid #cbd5e1;
-            border-radius: 10px;
+            border-radius: 8px;
             resize: none;
             font-size: 14px;
             outline: none;
             font-family: inherit;
         }
-        #message-input:focus { border-color: #2563eb; }
         .btn {
-            padding: 10px 16px;
+            padding: 9px 14px;
             border: none;
             border-radius: 8px;
             cursor: pointer;
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 500;
             white-space: nowrap;
         }
@@ -108,19 +113,69 @@
         .btn-primary:disabled { background: #93c5fd; cursor: not-allowed; }
         .btn-secondary { background: #e2e8f0; color: #334155; }
         .btn-secondary:hover { background: #cbd5e1; }
-        .file-name {
-            font-size: 12px;
-            color: #64748b;
-            margin-top: 6px;
-        }
-        .typing {
-            align-self: flex-start;
+        .file-name { font-size: 12px; color: #64748b; margin-top: 6px; }
+
+        /* 右侧生成区 */
+        .generate-panel {
+            width: 380px;
             background: white;
-            border: 1px solid #e2e8f0;
-            padding: 10px 16px;
-            border-radius: 12px;
-            color: #64748b;
+            padding: 20px;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+        .generate-panel h2 {
+            font-size: 16px;
+            margin-bottom: 16px;
+            color: #1e293b;
+        }
+        .form-group {
+            margin-bottom: 14px;
+        }
+        .form-group label {
+            display: block;
             font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 5px;
+            color: #475569;
+        }
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 9px 11px;
+            border: 1px solid #cbd5e1;
+            border-radius: 7px;
+            font-size: 13px;
+            outline: none;
+        }
+        .form-group textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+        .generate-btn {
+            width: 100%;
+            padding: 12px;
+            background: #16a34a;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 8px;
+        }
+        .generate-btn:hover { background: #15803d; }
+        .generate-btn:disabled { background: #86efac; cursor: not-allowed; }
+        .gen-msg {
+            margin-top: 12px;
+            font-size: 13px;
+            min-height: 18px;
+        }
+        .success { color: #16a34a; }
+        .error { color: #dc2626; }
+
+        @media (max-width: 860px) {
+            .main { flex-direction: column; }
+            .generate-panel { width: 100%; border-top: 1px solid #e2e8f0; }
         }
     </style>
 </head>
@@ -128,23 +183,55 @@
     <div class="header">
         <h1>简历管家</h1>
         <div>
-            <span id="status-text" style="font-size:13px;margin-right:12px;opacity:0.8;">已登录</span>
+            <span style="font-size:13px;margin-right:12px;opacity:0.85;">已登录</span>
             <button onclick="logout()">退出</button>
         </div>
     </div>
 
-    <div class="chat-container" id="chat-container">
-        <!-- 消息会动态插入这里 -->
-    </div>
+    <div class="main">
+        <!-- 左侧：对话区（随时补充信息） -->
+        <div class="chat-panel">
+            <div class="chat-container" id="chat-container"></div>
 
-    <div class="input-area">
-        <div class="input-row">
-            <input type="file" id="file-input" accept=".pdf,.doc,.docx,.txt" style="display:none" onchange="handleFileSelect(this)">
-            <button class="btn btn-secondary" onclick="document.getElementById('file-input').click()">上传文件</button>
-            <textarea id="message-input" placeholder="输入消息，或直接粘贴岗位JD让我生成简历...&#10;也可以说「保存这段经历」「我的GitHub是xxx」等" rows="1"></textarea>
-            <button class="btn btn-primary" id="send-btn" onclick="sendMessage()">发送</button>
+            <div class="input-area">
+                <div class="input-row">
+                    <input type="file" id="file-input" accept=".pdf,.doc,.docx,.txt" style="display:none" onchange="handleFileSelect(this)">
+                    <button class="btn btn-secondary" onclick="document.getElementById('file-input').click()">上传文件</button>
+                    <textarea id="message-input" placeholder="在这里补充项目经历、技能、GitHub、自我评价等任意信息..." rows="1"></textarea>
+                    <button class="btn btn-primary" id="send-btn" onclick="sendMessage()">发送</button>
+                </div>
+                <div class="file-name" id="file-name"></div>
+            </div>
         </div>
-        <div class="file-name" id="file-name"></div>
+
+        <!-- 右侧：专门生成简历 -->
+        <div class="generate-panel">
+            <h2>生成定制简历</h2>
+
+            <div class="form-group">
+                <label>职位名称</label>
+                <input type="text" id="job-title" placeholder="例如：高级 Python 工程师">
+            </div>
+
+            <div class="form-group">
+                <label>公司名称（可选）</label>
+                <input type="text" id="company" placeholder="例如：字节跳动">
+            </div>
+
+            <div class="form-group">
+                <label>岗位要求 / JD（必填）</label>
+                <textarea id="job-description" placeholder="请粘贴完整的岗位描述..."></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>简历风格（可选）</label>
+                <input type="text" id="style-description" placeholder="例如：极简黑白、现代双栏、商务正式...">
+            </div>
+
+            <button class="generate-btn" id="generate-btn" onclick="generateResume()">生成 PDF 简历</button>
+            <div id="gen-msg" class="gen-msg"></div>
+            <div id="download-area" style="margin-top:12px;"></div>
+        </div>
     </div>
 
     <script>
@@ -190,21 +277,6 @@
             container.scrollTop = container.scrollHeight;
         }
 
-        function addTyping() {
-            const container = document.getElementById("chat-container");
-            const div = document.createElement("div");
-            div.className = "typing";
-            div.id = "typing-indicator";
-            div.textContent = "管家正在思考...";
-            container.appendChild(div);
-            container.scrollTop = container.scrollHeight;
-        }
-
-        function removeTyping() {
-            const el = document.getElementById("typing-indicator");
-            if (el) el.remove();
-        }
-
         function handleFileSelect(input) {
             if (input.files && input.files[0]) {
                 selectedFile = input.files[0];
@@ -212,7 +284,7 @@
             }
         }
 
-        // 发送消息（核心逻辑）
+        // 发送补充信息（只负责保存，不触发生成）
         async function sendMessage() {
             if (!checkAuth()) return;
 
@@ -222,7 +294,6 @@
 
             if (!text && !selectedFile) return;
 
-            // 显示用户消息
             if (selectedFile) {
                 addMessage(`[上传文件] ${selectedFile.name}` + (text ? "\n" + text : ""), "user");
             } else {
@@ -231,14 +302,12 @@
 
             input.value = "";
             btn.disabled = true;
-            addTyping();
 
             try {
-                // 情况1：有文件 → 优先上传
                 if (selectedFile) {
                     const formData = new FormData();
                     formData.append("file", selectedFile);
-                    if (text) formData.append("note", text);  // 可选备注
+                    if (text) formData.append("note", text);
 
                     const res = await apiFetch("/api/v1/resumes/upload", {
                         method: "POST",
@@ -246,98 +315,29 @@
                     });
                     const data = await res.json();
 
-                    removeTyping();
                     if (res.ok) {
-                        addMessage("已收到并解析你的简历，内容已保存。\n你可以继续补充项目经历、GitHub，或者直接发岗位JD让我生成定制简历。", "bot");
+                        addMessage("已收到并解析你的文件，内容已保存。可以继续补充信息，或在右侧生成简历。", "bot");
                     } else {
                         addMessage("上传失败：" + (data.detail || "未知错误"), "bot");
                     }
                     selectedFile = null;
                     document.getElementById("file-name").textContent = "";
                     document.getElementById("file-input").value = "";
-                }
-                // 情况2：纯文字
-                else {
-                    // 判断是否像「生成简历」请求
-                    const isGenerate = /生成|写一份|做一份|根据.*岗位|针对.*职位|JD|职位要求/i.test(text) && text.length > 30;
+                } else {
+                    // 普通文字 → 保存为补充信息
+                    const res = await apiFetch("/api/v1/resumes/supplement", {
+                        method: "POST",
+                        body: JSON.stringify({ content: text })
+                    });
+                    const data = await res.json();
 
-                    if (isGenerate) {
-                        // 简单提取风格描述（可继续优化）
-                        let styleDescription = null;
-                        const styleMatch = text.match(/(用|按照|做成|生成)(.*?)(风格|模板|样式)/i);
-                        if (styleMatch) {
-                            styleDescription = styleMatch[2].trim() + "风格";
-                        } else if (/极简|简约|商务|双栏|现代|创意|彩色|黑白/.test(text)) {
-                            styleDescription = text;  // 直接把整句当风格描述
-                        }
-
-                        const res = await apiFetch("/api/v1/generate/", {
-                            method: "POST",
-                            body: JSON.stringify({
-                                job_title: "用户指定岗位",
-                                company: null,
-                                job_description: text,
-                                style_description: styleDescription   // 新增
-                            })
-                        });
-                        const data = await res.json();
-                        removeTyping();
-
-                        if (data.pdf_url) {
-                            addMessage("已根据你保存的所有信息，生成定制简历 PDF！\n点击下方按钮下载：", "bot");
-
-                            // 添加下载按钮
-<!--                            const container = document.getElementById("chat-container");-->
-<!--                            const btnDiv = document.createElement("div");-->
-<!--                            btnDiv.className = "message bot";-->
-<!--                            btnDiv.innerHTML = `<a href="${data.pdf_url}"-->
-<!--                                style="display:inline-block;padding:8px 16px;background:#2563eb;color:white;text-decoration:none;border-radius:6px;"-->
-<!--                                target="_blank">下载 PDF 简历</a>`;-->
-<!--                            container.appendChild(btnDiv);-->
-<!--                            container.scrollTop = container.scrollHeight;-->
-                                const downloadBtn = document.createElement("button");
-                                downloadBtn.textContent = "下载 PDF 简历";
-                                downloadBtn.className = "btn btn-primary";
-                                downloadBtn.style.marginTop = "8px";
-                                downloadBtn.onclick = async () => {
-                                    const token = getToken();
-                                    const res = await fetch(data.pdf_url, {
-                                        headers: { "Authorization": `Bearer ${token}` }
-                                    });
-                                    const blob = await res.blob();
-                                    const url = window.URL.createObjectURL(blob);
-                                    const a = document.createElement("a");
-                                    a.href = url;
-                                    a.download = `简历_${Date.now()}.pdf`;
-                                    a.click();
-                                    window.URL.revokeObjectURL(url);
-                                };
-
-                                const btnWrapper = document.createElement("div");
-                                btnWrapper.className = "message bot";
-                                btnWrapper.appendChild(downloadBtn);
-                                document.getElementById("chat-container").appendChild(btnWrapper);
-                        } else {
-                            addMessage("生成成功，但未返回文件链接", "bot");
-                        }
+                    if (res.ok) {
+                        addMessage("已记录并保存。可以继续补充，或在右侧填写岗位要求后生成简历。", "bot");
                     } else {
-                        // 普通信息 → 保存为补充内容
-                        const res = await apiFetch("/api/v1/resumes/supplement", {
-                            method: "POST",
-                            body: JSON.stringify({ content: text })
-                        });
-                        const data = await res.json();
-                        removeTyping();
-
-                        if (res.ok) {
-                            addMessage("已记录并保存这条信息。你可以继续补充，或随时发岗位JD让我生成简历。", "bot");
-                        } else {
-                            addMessage("保存失败：" + (data.detail || "未知错误"), "bot");
-                        }
+                        addMessage("保存失败：" + (data.detail || "未知错误"), "bot");
                     }
                 }
             } catch (err) {
-                removeTyping();
                 addMessage("出错了：" + err.message, "bot");
             } finally {
                 btn.disabled = false;
@@ -345,7 +345,79 @@
             }
         }
 
-        // 回车发送（Shift+Enter 换行）
+        // 专门的生成简历函数
+        async function generateResume() {
+            if (!checkAuth()) return;
+
+            const jobTitle = document.getElementById("job-title").value.trim();
+            const company = document.getElementById("company").value.trim();
+            const jobDescription = document.getElementById("job-description").value.trim();
+            const styleDescription = document.getElementById("style-description").value.trim();
+            const msgEl = document.getElementById("gen-msg");
+            const downloadArea = document.getElementById("download-area");
+            const btn = document.getElementById("generate-btn");
+
+            if (!jobDescription) {
+                msgEl.className = "gen-msg error";
+                msgEl.innerText = "请填写岗位要求 / JD";
+                return;
+            }
+
+            btn.disabled = true;
+            msgEl.className = "gen-msg";
+            msgEl.innerText = "正在生成简历，请稍候（大模型处理中）...";
+            downloadArea.innerHTML = "";
+
+            try {
+                const res = await apiFetch("/api/v1/generate/", {
+                    method: "POST",
+                    body: JSON.stringify({
+                        job_title: jobTitle || "目标岗位",
+                        company: company || null,
+                        job_description: jobDescription,
+                        style_description: styleDescription || null
+                    })
+                });
+                const data = await res.json();
+
+                if (res.ok && data.pdf_url) {
+                    msgEl.className = "gen-msg success";
+                    msgEl.innerText = "生成成功！";
+
+                    // 下载按钮（带 Token）
+                    const downloadBtn = document.createElement("button");
+                    downloadBtn.textContent = "下载 PDF 简历";
+                    downloadBtn.className = "btn btn-primary";
+                    downloadBtn.style.width = "100%";
+                    downloadBtn.onclick = async () => {
+                        const token = getToken();
+                        const fileRes = await fetch(data.pdf_url, {
+                            headers: { "Authorization": `Bearer ${token}` }
+                        });
+                        const blob = await fileRes.blob();
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement("a");
+                        a.href = url;
+                        a.download = `简历_${jobTitle || "resume"}.pdf`;
+                        a.click();
+                        window.URL.revokeObjectURL(url);
+                    };
+                    downloadArea.appendChild(downloadBtn);
+
+                    addMessage(`已根据你保存的所有信息和右侧岗位要求，生成定制简历。请点击右侧下载按钮。`, "bot");
+                } else {
+                    msgEl.className = "gen-msg error";
+                    msgEl.innerText = data.detail || data.message || "生成失败";
+                }
+            } catch (err) {
+                msgEl.className = "gen-msg error";
+                msgEl.innerText = err.message || "网络错误";
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        // 回车发送
         document.getElementById("message-input").addEventListener("keydown", (e) => {
             if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
@@ -356,7 +428,7 @@
         // 初始化
         document.addEventListener("DOMContentLoaded", () => {
             if (!checkAuth()) return;
-            addMessage("你好，我是你的简历管家。\n\n你可以随时：\n1. 上传简历 PDF\n2. 告诉我项目经历、GitHub、技能等任何信息\n3. 直接粘贴岗位JD，说「帮我生成简历」\n\n所有信息都会自动保存，下次可以直接生成。", "bot");
+            addMessage("你好，我是你的简历管家。\n\n左侧可以随时上传简历或补充任何信息（都会自动保存）。\n右侧填写岗位要求后，点击「生成 PDF 简历」即可。", "bot");
         });
     </script>
 </body>
