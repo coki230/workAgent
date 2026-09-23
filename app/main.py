@@ -1,4 +1,6 @@
 from pathlib import Path
+
+import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
@@ -57,3 +59,7 @@ async def dashboard_page(request: Request):
         request=request,
         name="dashboard.html"
     )
+
+if __name__ == '__main__':
+    # 注意：在代码中传参时，使用 app 变量本身或字符串 "app.main:app"
+    uvicorn.run("app.main:app", host="0.0.0.0", port=8080, reload=True)

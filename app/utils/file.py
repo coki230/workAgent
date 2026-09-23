@@ -16,3 +16,12 @@ def save_upload_file(user_id: int, filename: str, content: bytes) -> str:
     with open(file_path, "wb") as f:
         f.write(content)
     return str(file_path)
+
+def str_2_file(file_path: str, text: str)   :
+    with open(file_path, "w", encoding="utf-8") as f:
+        f.write(text)
+
+def file_2_str(file_path: str) -> str :
+    with open(file_path, "r", encoding="utf-8") as f:
+        content = f.read()
+    return content

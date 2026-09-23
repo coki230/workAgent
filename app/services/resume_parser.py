@@ -31,6 +31,9 @@ def structure_resume_with_llm(raw_text: str) -> dict:
 简历原文：
 {raw_text[:12000]}
 """
+    import app.utils.file as file_utils
+    file_utils.str_2_file("prompt.txt", prompt)
+
     response = llm.invoke(prompt)
     content = response.content.strip()
     # 简单清理可能的 markdown 代码块

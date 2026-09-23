@@ -34,5 +34,7 @@ class GenerateRequest(BaseModel):
     job_title: str
     company: Optional[str] = None
     job_description: str
+    template_name: Optional[str] = "modern"  # 内置模板名（备用）
+    style_description: Optional[str] = None  # 新增：自然语言风格描述
 
 
